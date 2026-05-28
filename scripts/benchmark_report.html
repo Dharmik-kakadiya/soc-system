@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOC System Benchmark Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+  :root {
+    --bg: #0a0a0f; --surface: #12121a; --surface2: #1a1a26;
+    --border: #2a2a40; --accent: #6c63ff; --accent2: #00e5ff;
+    --text: #e0e0f0; --text-muted: #888899;
+    --green: #00e676; --yellow: #ffeb3b; --orange: #ff9800; --red: #f44336;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding:2rem; }
+
+  .header { text-align:center; margin-bottom:3rem; position:relative; }
+  .header::before { content:''; position:absolute; inset:-2rem;
+    background:radial-gradient(ellipse at 50% 0%, rgba(108,99,255,0.18) 0%, transparent 70%);
+    pointer-events:none; }
+  .header h1 { font-size:2.4rem; font-weight:900;
+    background:linear-gradient(135deg,#6c63ff,#00e5ff,#00e676);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:-0.5px; }
+  .header .subtitle { color:var(--text-muted); margin-top:0.5rem; font-size:0.95rem;
+    font-family:'JetBrains Mono',monospace; }
+
+  .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+    gap:1rem; margin-bottom:2.5rem; }
+  .summary-card { background:var(--surface); border:1px solid var(--border); border-radius:16px;
+    padding:1.4rem 1.2rem; text-align:center; position:relative; overflow:hidden;
+    transition:transform 0.2s, border-color 0.2s; }
+  .summary-card:hover { transform:translateY(-3px); border-color:var(--accent); }
+  .summary-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+  .summary-card .val { font-size:2.2rem; font-weight:700;
+    background:linear-gradient(135deg,#6c63ff,#00e5ff);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .summary-card .lbl { color:var(--text-muted); font-size:0.8rem; margin-top:0.3rem;
+    text-transform:uppercase; letter-spacing:1px; }
+
+  .section-title { font-size:1.1rem; font-weight:600; color:var(--accent2);
+    margin-bottom:1rem; text-transform:uppercase; letter-spacing:2px; }
+  .class-cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:1rem; margin-bottom:3rem; }
+  .class-card { background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:1.2rem; text-align:center; transition:transform 0.2s; }
+  .class-card:hover { transform:translateY(-4px); border-color:var(--accent); }
+  .class-name { font-size:0.85rem; font-weight:600; color:var(--accent2); margin-bottom:0.4rem;
+    text-transform:uppercase; letter-spacing:1px; }
+  .class-acc { font-size:1.6rem; font-weight:700; line-height:1; }
+  .class-detail { font-size:0.75rem; color:var(--text-muted); margin-top:0.3rem; }
+  .progress-ring { width:56px; height:56px; margin:0.8rem auto 0; }
+  .progress-ring svg { transform:rotate(-90deg); }
+
+  .table-container { background:var(--surface); border:1px solid var(--border);
+    border-radius:16px; overflow:hidden; margin-bottom:2rem; }
+  table { width:100%; border-collapse:collapse; }
+  thead tr { background:linear-gradient(90deg,rgba(108,99,255,0.15),rgba(0,229,255,0.08));
+    border-bottom:1px solid var(--border); }
+  th { padding:1rem 1.2rem; text-align:left; font-size:0.75rem; font-weight:600;
+    text-transform:uppercase; letter-spacing:1.5px; color:var(--text-muted); }
+  td { padding:0.85rem 1.2rem; font-size:0.88rem;
+    border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(108,99,255,0.05); }
+  .attack-name { font-family:'JetBrains Mono',monospace; font-size:0.82rem; color:var(--accent2); }
+  .class-badge { background:rgba(108,99,255,0.15); border:1px solid rgba(108,99,255,0.35);
+    color:#a09bff; border-radius:6px; padding:0.2rem 0.6rem;
+    font-size:0.75rem; font-weight:600; white-space:nowrap; }
+  .badge { border-radius:6px; padding:0.2rem 0.7rem; font-size:0.72rem;
+    font-weight:700; letter-spacing:1px; }
+  .bar-container { position:relative; background:#1e1e2e; border-radius:6px;
+    height:22px; min-width:120px; overflow:hidden; }
+  .bar { height:100%; border-radius:6px; opacity:0.85; }
+  .bar-label { position:absolute; right:8px; top:50%; transform:translateY(-50%);
+    font-size:0.75rem; font-weight:600; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.8); }
+  .pred-cell { font-family:'JetBrains Mono',monospace; font-size:0.72rem;
+    color:var(--text-muted); max-width:200px; word-break:break-all; }
+  .footer { text-align:center; color:var(--text-muted); font-size:0.8rem;
+    margin-top:3rem; padding-top:1.5rem; border-top:1px solid var(--border); }
+  .footer strong { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>SOC SYSTEM - BENCHMARK REPORT</h1>
+  <p class="subtitle">Generated: 2026-05-06 11:52:31 &nbsp;|&nbsp; Dataset: CICIDS-2018 &nbsp;|&nbsp; Samples/Attack: 200</p>
+</div>
+
+<div class="summary-grid">
+  <div class="summary-card"><div class="val">14</div><div class="lbl">Attack Types Tested</div></div>
+  <div class="summary-card"><div class="val">2,687</div><div class="lbl">Total Samples</div></div>
+  <div class="summary-card"><div class="val">2,487</div><div class="lbl">Correct Predictions</div></div>
+  <div class="summary-card"><div class="val">92.6%</div><div class="lbl">Overall Accuracy</div></div>
+  <div class="summary-card"><div class="val">6</div><div class="lbl">Model Classes</div></div>
+  <div class="summary-card"><div class="val">1</div><div class="lbl">Missing Labels</div></div>
+</div>
+
+<p class="section-title">Accuracy by Model Class</p>
+<div class="class-cards-grid">
+
+        <div class="class-card">
+            <div class="class-name">Bot</div>
+            <div class="class-acc" style="color:#00e676;">100.0%</div>
+            <div class="class-detail">200/200 correct</div>
+            <div class="progress-ring">
+                <svg viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#222" stroke-width="8"/>
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#00e676" stroke-width="8"
+                        stroke-dasharray="213.6 213.6"
+                        stroke-dashoffset="53.4"
+                        stroke-linecap="round"/>
+                </svg>
+            </div>
+        </div>
+    
+        <div class="class-card">
+            <div class="class-name">BruteForce</div>
+            <div class="class-acc" style="color:#00e676;">90.4%</div>
+            <div class="class-detail">723/800 correct</div>
+            <div class="progress-ring">
+                <svg viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#222" stroke-width="8"/>
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#00e676" stroke-width="8"
+                        stroke-dasharray="193.1 213.6"
+                        stroke-dashoffset="53.4"
+                        stroke-linecap="round"/>
+                </svg>
+            </div>
+        </div>
+    
+        <div class="class-card">
+            <div class="class-name">DDoS</div>
+            <div class="class-acc" style="color:#00e676;">100.0%</div>
+            <div class="class-detail">600/600 correct</div>
+            <div class="progress-ring">
+                <svg viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#222" stroke-width="8"/>
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#00e676" stroke-width="8"
+                        stroke-dasharray="213.6 213.6"
+                        stroke-dashoffset="53.4"
+                        stroke-linecap="round"/>
+                </svg>
+            </div>
+        </div>
+    
+        <div class="class-card">
+            <div class="class-name">DoS</div>
+            <div class="class-acc" style="color:#00e676;">88.0%</div>
+            <div class="class-detail">704/800 correct</div>
+            <div class="progress-ring">
+                <svg viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#222" stroke-width="8"/>
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#00e676" stroke-width="8"
+                        stroke-dasharray="188.0 213.6"
+                        stroke-dashoffset="53.4"
+                        stroke-linecap="round"/>
+                </svg>
+            </div>
+        </div>
+    
+        <div class="class-card">
+            <div class="class-name">Infiltration</div>
+            <div class="class-acc" style="color:#00e676;">92.5%</div>
+            <div class="class-detail">185/200 correct</div>
+            <div class="progress-ring">
+                <svg viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#222" stroke-width="8"/>
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#00e676" stroke-width="8"
+                        stroke-dasharray="197.6 213.6"
+                        stroke-dashoffset="53.4"
+                        stroke-linecap="round"/>
+                </svg>
+            </div>
+        </div>
+    
+        <div class="class-card">
+            <div class="class-name">WebAttack</div>
+            <div class="class-acc" style="color:#00e676;">86.2%</div>
+            <div class="class-detail">75/87 correct</div>
+            <div class="progress-ring">
+                <svg viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#222" stroke-width="8"/>
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#00e676" stroke-width="8"
+                        stroke-dasharray="184.2 213.6"
+                        stroke-dashoffset="53.4"
+                        stroke-linecap="round"/>
+                </svg>
+            </div>
+        </div>
+    
+</div>
+
+<p class="section-title">Detailed Attack-Level Results</p>
+<div class="table-container">
+  <table>
+    <thead>
+      <tr>
+        <th>Raw Attack Label</th>
+        <th>Model Class</th>
+        <th>Samples</th>
+        <th>Correct</th>
+        <th>Accuracy</th>
+        <th>Status</th>
+        <th>Prediction Breakdown</th>
+        <th>Avg Latency</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+        <tr>
+            <td class="attack-name">DoS attacks-Hulk</td>
+            <td><span class="class-badge">DoS</span></td>
+            <td>200</td>
+            <td>200</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:100%; background:#00e676;"></div>
+                    <span class="bar-label">100.0%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#00e676; color:#000;">PASS</span></td>
+            <td class="pred-cell">DoS: 200</td>
+            <td>84.2ms</td>
+        </tr>
+    
+        <tr>
+            <td class="attack-name">DoS attacks-GoldenEye</td>
+            <td><span class="class-badge">DoS</span></td>
+            <td>200</td>
+            <td>200</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:100%; background:#00e676;"></div>
+                    <span class="bar-label">100.0%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#00e676; color:#000;">PASS</span></td>
+            <td class="pred-cell">DoS: 200</td>
+            <td>71.1ms</td>
+        </tr>
+    
+        <tr>
+            <td class="attack-name">DoS attacks-Slowloris</td>
+            <td><span class="class-badge">DoS</span></td>
+            <td>200</td>
+            <td>200</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:100%; background:#00e676;"></div>
+                    <span class="bar-label">100.0%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#00e676; color:#000;">PASS</span></td>
+            <td class="pred-cell">DoS: 200</td>
+            <td>48.4ms</td>
+        </tr>
+    
+        <tr>
+            <td class="attack-name">DoS attacks-SlowHTTPTest</td>
+            <td><span class="class-badge">DoS</span></td>
+            <td>200</td>
+            <td>104</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:52%; background:#ff9800;"></div>
+                    <span class="bar-label">52.0%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#ff9800; color:#000;">WEAK</span></td>
+            <td class="pred-cell">DoS: 104, BruteForce: 96</td>
+            <td>48.6ms</td>
+        </tr>
+    
+        <tr>
+            <td class="attack-name">DDOS attack-HOIC</td>
+            <td><span class="class-badge">DDoS</span></td>
+            <td>200</td>
+            <td>200</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:100%; background:#00e676;"></div>
+                    <span class="bar-label">100.0%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#00e676; color:#000;">PASS</span></td>
+            <td class="pred-cell">DDoS: 200</td>
+            <td>48.5ms</td>
+        </tr>
+    
+        <tr>
+            <td class="attack-name">DDOS attack-LOIC-UDP</td>
+            <td><span class="class-badge">DDoS</span></td>
+            <td>200</td>
+            <td>200</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:100%; background:#00e676;"></div>
+                    <span class="bar-label">100.0%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#00e676; color:#000;">PASS</span></td>
+            <td class="pred-cell">DDoS: 200</td>
+            <td>48.4ms</td>
+        </tr>
+    
+        <tr>
+            <td class="attack-name">DDoS attacks-LOIC-HTTP</td>
+            <td><span class="class-badge">DDoS</span></td>
+            <td>200</td>
+            <td>200</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:100%; background:#00e676;"></div>
+                    <span class="bar-label">100.0%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#00e676; color:#000;">PASS</span></td>
+            <td class="pred-cell">DDoS: 200</td>
+            <td>48.4ms</td>
+        </tr>
+    
+        <tr>
+            <td class="attack-name">Brute Force -Web</td>
+            <td><span class="class-badge">BruteForce</span></td>
+            <td>200</td>
+            <td>194</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:97%; background:#00e676;"></div>
+                    <span class="bar-label">97.0%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#00e676; color:#000;">PASS</span></td>
+            <td class="pred-cell">BruteForce: 194, DoS: 5, BENIGN: 1</td>
+            <td>48.4ms</td>
+        </tr>
+    
+        <tr>
+            <td class="attack-name">Brute Force -XSS</td>
+            <td><span class="class-badge">BruteForce</span></td>
+            <td>200</td>
+            <td>144</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:72%; background:#ffeb3b;"></div>
+                    <span class="bar-label">72.0%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#ffeb3b; color:#000;">FAIR</span></td>
+            <td class="pred-cell">BruteForce: 144, DoS: 56</td>
+            <td>48.1ms</td>
+        </tr>
+    
+        <tr>
+            <td class="attack-name">SSH-Bruteforce</td>
+            <td><span class="class-badge">BruteForce</span></td>
+            <td>200</td>
+            <td>200</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:100%; background:#00e676;"></div>
+                    <span class="bar-label">100.0%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#00e676; color:#000;">PASS</span></td>
+            <td class="pred-cell">BruteForce: 200</td>
+            <td>48.5ms</td>
+        </tr>
+    
+        <tr>
+            <td class="attack-name">FTP-BruteForce</td>
+            <td><span class="class-badge">BruteForce</span></td>
+            <td>200</td>
+            <td>185</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:92%; background:#00e676;"></div>
+                    <span class="bar-label">92.5%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#00e676; color:#000;">PASS</span></td>
+            <td class="pred-cell">BruteForce: 185, DoS: 15</td>
+            <td>57.0ms</td>
+        </tr>
+    
+        <tr>
+            <td class="attack-name">SQL Injection</td>
+            <td><span class="class-badge">WebAttack</span></td>
+            <td>87</td>
+            <td>75</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:86%; background:#00e676;"></div>
+                    <span class="bar-label">86.2%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#00e676; color:#000;">PASS</span></td>
+            <td class="pred-cell">WebAttack: 75, BruteForce: 8, BENIGN: 4</td>
+            <td>75.6ms</td>
+        </tr>
+    
+        <tr>
+            <td class="attack-name">Infilteration</td>
+            <td><span class="class-badge">Infiltration</span></td>
+            <td>200</td>
+            <td>185</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:92%; background:#00e676;"></div>
+                    <span class="bar-label">92.5%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#00e676; color:#000;">PASS</span></td>
+            <td class="pred-cell">Infiltration: 185, BENIGN: 15</td>
+            <td>79.4ms</td>
+        </tr>
+    
+        <tr>
+            <td class="attack-name">Bot</td>
+            <td><span class="class-badge">Bot</span></td>
+            <td>200</td>
+            <td>200</td>
+            <td>
+                <div class="bar-container">
+                    <div class="bar" style="width:100%; background:#00e676;"></div>
+                    <span class="bar-label">100.0%</span>
+                </div>
+            </td>
+            <td><span class="badge" style="background:#00e676; color:#000;">PASS</span></td>
+            <td class="pred-cell">Bot: 200</td>
+            <td>84.0ms</td>
+        </tr>
+    
+        <tr style="opacity:0.5;">
+            <td class="attack-name">Infiltration</td>
+            <td><span class="class-badge">Infiltration</span></td>
+            <td colspan="6" style="text-align:center; color:#888;">No samples found in data/</td>
+        </tr>
+    
+    </tbody>
+  </table>
+</div>
+
+<div class="footer">
+  Generated by <strong>SOC System Benchmark</strong> &nbsp;|&nbsp;
+  Model: RandomForest (2-stage: IDS + Attack Classifier) &nbsp;|&nbsp;
+  Dataset: CSE-CIC-IDS2018
+</div>
+</body>
+</html>
