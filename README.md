@@ -1,87 +1,221 @@
-# 🛡️ Responsive SOC (Intrusion Detection & Prevention System)
+# 🛡️ SOC System — AI-Powered Intrusion Detection System
 
-Welcome to the **Responsive SOC (Security Operations Center)**! This project is an end-to-end, machine-learning-powered network security system designed to monitor live traffic, detect malicious attacks in real-time, and take automated defensive actions.
+<div align="center">
 
-## 🎯 What does this system do?
-This system acts as a digital security guard for your network/computer. Its primary purposes are:
-1. **Live Network Monitoring:** It silently listens to incoming and outgoing network traffic.
-2. **Threat Detection (AI/ML):** It passes network statistics through trained Machine Learning models to identify cyber attacks (e.g., DDoS, DoS, BruteForce, Infiltration, and Botnets) with high accuracy.
-3. **Automated Response (IPS):** Depending on the severity of the threat, it can automatically log the event, flag the IP, or actively block the attacker using Windows Firewall.
-4. **Visual Analytics:** It provides a beautiful, real-time dashboard to visualize what is happening on your network.
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-green?logo=fastapi)
+![Streamlit](https://img.shields.io/badge/Dashboard-Streamlit-red?logo=streamlit)
+![ML](https://img.shields.io/badge/ML-RandomForest-orange?logo=scikit-learn)
+![Platform](https://img.shields.io/badge/Platform-Windows-blue?logo=windows)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
----
+**A real-time, AI-powered Security Operations Center that monitors live network traffic, detects cyber attacks, and automatically responds to threats.**
 
-## 🏗️ System Architecture & Components
-
-The system is fully modular and composed of several independent components orchestrated together:
-
-### 1. 📡 Live Packet Sniffer (`scripts/sniffer.py`)
-- Uses `scapy` to capture raw network packets.
-- Extracts complex flow features on-the-fly (e.g., Packets per second, Bytes per second, max/min packet lengths).
-- Sends optimized JSON payloads to the ML API for prediction without blocking the sniffing process.
-
-### 2. 🧠 ML Inference Engine (`api/main.py` & `ml/pipeline/predict.py`)
-- A highly concurrent `FastAPI` backend.
-- Uses `scikit-learn` models (Random Forest) and feature scaling to classify traffic into specific attack vectors.
-- Exposes a `/predict` endpoint for the sniffer and a `/health` endpoint for system orchestration.
-
-### 3. 🚨 Alert & Response Manager (`ml/alerts/alert_manager.py`)
-- **Anti-Spam Cooldown:** Prevents terminal and log spam by enforcing a 30-second cooldown per (IP + Attack Type).
-- **Whitelist:** Ensures safe internal IPs (like `127.0.0.1` or `192.168.1.1`) are never blocked.
-- **Dynamic Severity Mapping:** 
-  - `LOW` → Safe/Minor issues (Logged)
-  - `MEDIUM` / `HIGH` → DDoS/BruteForce (Flagged)
-  - `CRITICAL` → Infiltration/Bots (Actively Blocked)
-- **Auto-Unblock System:** Automatically adds a Windows Firewall rule to block critical IPs, and safely deletes the rule after 60 seconds.
-
-### 4. 📊 Live Dashboard (`dashboard/app.py`)
-- Built with `Streamlit`.
-- Features zero-dependency pure HTML/SVG charts for fast rendering.
-- Automatically deduplicates logs so you only see unique threats in the Live Alerts Feed.
-- Shows total threats, unique attackers, severity badges, and automated actions taken by the system.
-
-### 5. ⚙️ Robust Orchestrator (`scripts/run_soc.py`)
-- Acts as the master controller.
-- Validates system paths, boots the API, waits for successful HTTP health checks, and then securely launches the Dashboard and Sniffer.
-- Continuously monitors child processes. If any process crashes, it triggers a safe, graceful shutdown of the entire system.
-
-### 6. 🧪 Attack Simulator (`scripts/simulate_attack.py`)
-- A safe testing utility to inject dummy attack records into the system to verify that the Dashboard and Response Manager are working correctly.
+</div>
 
 ---
 
-## 🚀 How to Use the System
+## 🎯 What Does This System Do?
+
+This system acts as a digital security guard for your Windows computer/network:
+
+1. **📡 Live Network Monitoring** — Silently captures and analyzes incoming/outgoing traffic
+2. **🧠 AI Threat Detection** — Uses trained ML models (Random Forest) to identify attacks like DDoS, BruteForce, Infiltration, and Botnets
+3. **🚨 Automated Response (IPS)** — Automatically logs, flags, or **blocks** malicious IPs using Windows Firewall
+4. **📊 Real-Time Dashboard** — Beautiful live dashboard showing threats, attacker IPs, and actions taken
+
+---
+
+## 🏗️ System Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   run_soc.py                        │
+│              (Master Orchestrator)                  │
+└────────┬──────────────┬──────────────┬──────────────┘
+         │              │              │
+         ▼              ▼              ▼
+   ┌──────────┐  ┌────────────┐  ┌──────────────┐
+   │  FastAPI │  │  Sniffer   │  │  Streamlit   │
+   │  :8001   │  │ (scapy)    │  │  Dashboard   │
+   └──────────┘  └────────────┘  └──────────────┘
+         ▲              │
+         │   POST /predict
+         └──────────────┘
+              ML Models
+         (RandomForest + Scaler)
+```
+
+### Components
+
+| Component | File | Description |
+|-----------|------|-------------|
+| 🎛️ Orchestrator | `scripts/run_soc.py` | Starts all services, monitors health |
+| 📡 Sniffer | `scripts/sniffer.py` | Captures packets, extracts 78 features |
+| 🧠 ML API | `api/main.py` | FastAPI inference engine |
+| 🚨 Alert Manager | `ml/alerts/alert_manager.py` | Logs, flags, and blocks threats |
+| 📊 Dashboard | `dashboard/app.py` | Real-time Streamlit UI |
+| 🧪 Attack Simulator | `scripts/simulate_attack.py` | Test without real attacks |
+
+---
+
+## ⚡ Quick Start
 
 ### Prerequisites
-- Python 3.x installed.
-- Administrative (Elevated) privileges are required to run the network sniffer and manipulate the Windows Firewall.
 
-### Starting the SOC System
-1. Open a terminal as **Administrator**.
-2. Navigate to the project root directory.
-3. Run the orchestration script:
-   ```bash
-   python scripts/run_soc.py
-   ```
-4. The script will automatically:
-   - Start the FastAPI server on port `8001`.
-   - Open the Streamlit Dashboard in your default web browser (usually at `http://localhost:8501` or `8502`).
-   - Start listening to network traffic.
+| Requirement | Details |
+|-------------|---------|
+| **OS** | Windows 10/11 (Required for Firewall integration) |
+| **Python** | 3.8 or higher |
+| **Npcap** | Required for packet sniffing → [Download here](https://npcap.com/#download) |
+| **Admin rights** | Required to sniff packets and modify Firewall |
+| **ML Models** | See [Training Models](#-training-the-models) below |
 
-### Testing the System
-If you don't have active malicious traffic but want to see the dashboard in action:
-1. Keep the SOC system running.
-2. Open a second terminal.
-3. Run the simulator:
-   ```bash
-   python scripts/simulate_attack.py
-   ```
-4. Check your Dashboard! You will see alerts pop up and observe the Firewall blocking actions in real-time.
+### Installation
+
+**Step 1 — Clone the repository:**
+```bash
+git clone https://github.com/Dharmik-kakadiya/soc-system.git
+cd soc-system
+```
+
+**Step 2 — Install Npcap:**
+- Download from: https://npcap.com/#download
+- During install, check **"Install Npcap in WinPcap API-compatible Mode"**
+
+**Step 3 — Run the setup script (as Administrator):**
+```bash
+setup.bat
+```
+
+Or manually install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+**Step 4 — Train the ML models:**
+```bash
+python scripts/train_attack_model.py
+python scripts/train_ids_model.py
+```
+> ⚠️ You need the CIC-IDS2017 dataset. See [Training Models](#-training-the-models) for details.
+
+### Running the SOC System
+
+Open a terminal **as Administrator** and run:
+```bash
+python scripts/run_soc.py
+```
+
+The system will automatically:
+- ✅ Start the FastAPI server on port `8001`
+- ✅ Start the Network Sniffer
+- ✅ Open the Streamlit Dashboard at `http://localhost:8501`
+
+### Testing Without Real Attacks
+
+Keep the SOC running, then in a **second terminal**:
+```bash
+python scripts/simulate_attack.py
+```
+Watch alerts appear live on the dashboard! 🎯
 
 ### Stopping the System
-- Simply press `Ctrl + C` in the main terminal. The orchestrator will catch the interrupt and cleanly shut down the API, Dashboard, and Sniffer processes.
+Press `Ctrl + C` in the main terminal — all services shut down cleanly.
 
 ---
 
-## 🛡️ Security Disclaimer
-This tool actively manipulates Windows Firewall rules. The auto-unblock system will remove rules after 60 seconds, but always exercise caution when testing the `CRITICAL` blocking features on a production network. The whitelist feature ensures your local machine stays accessible.
+## 🧠 Training the Models
+
+The ML models are trained on the **CIC-IDS2017** dataset by the Canadian Institute for Cybersecurity.
+
+1. **Download the dataset**: [UNB CIC-IDS2017](https://www.unb.ca/cic/datasets/ids-2017.html)
+2. Place CSV files in the `data/` directory
+3. Run:
+```bash
+python scripts/prepare_dataset.py     # Prepare & clean data
+python scripts/train_attack_model.py  # Train attack classifier
+python scripts/train_ids_model.py     # Train IDS model
+python scripts/build_preprocessors.py # Build scalers/encoders
+```
+
+Models will be saved to `ml/models/`.
+
+---
+
+## 🚨 Threat Severity & Actions
+
+| Severity | Attack Types | Action Taken |
+|----------|-------------|--------------|
+| 🟡 LOW | Minor anomalies | Logged only |
+| 🟠 MEDIUM | DoS, Port Scans | Logged + Flagged |
+| 🔴 HIGH | DDoS, BruteForce | Flagged |
+| 🚨 CRITICAL | Infiltration, Botnets | **Auto-blocked via Firewall** (60s) |
+
+> Auto-blocked IPs are automatically **unblocked after 60 seconds**. Your local IP is always whitelisted.
+
+---
+
+## 📁 Project Structure
+
+```
+soc-system/
+├── api/                    # FastAPI backend
+│   ├── main.py
+│   └── routes/
+│       ├── health.py
+│       └── predict.py
+├── dashboard/
+│   └── app.py              # Streamlit dashboard
+├── ml/
+│   ├── alerts/
+│   │   └── alert_manager.py
+│   ├── models/             # Trained .pkl models (not in git)
+│   ├── preprocessors/      # Scalers/encoders
+│   └── pipeline/
+│       ├── predict.py
+│       └── preprocess.py
+├── scripts/
+│   ├── run_soc.py          # ⭐ Main entry point
+│   ├── sniffer.py
+│   ├── train_attack_model.py
+│   ├── train_ids_model.py
+│   └── simulate_attack.py
+├── data/                   # Place dataset CSVs here
+├── requirements.txt
+├── setup.bat
+└── config.py
+```
+
+---
+
+## 🛠️ API Reference
+
+Once running, visit: **http://127.0.0.1:8001/docs** (auto-generated Swagger UI)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Check if API is live |
+| `/predict` | POST | Submit flow features for threat classification |
+
+---
+
+## ⚠️ Security Disclaimer
+
+- This tool **actively modifies Windows Firewall rules**
+- Always test in a **controlled/isolated environment** first
+- The auto-unblock system removes rules after 60 seconds
+- Your local machine IPs are always whitelisted
+- **Use responsibly and only on networks you own/have permission to monitor**
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
+
+---
+
+<div align="center">
+Built with ❤️ | SOC System v1.0
+</div>
